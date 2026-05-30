@@ -17,15 +17,24 @@ async def scrape_saved_posts(config: Config, max_posts: int | None = None) -> li
     async with async_playwright() as p:
         Path(BROWSER_DATA_DIR).mkdir(parents=True, exist_ok=True)
 
-        context = await p.chromium.launch_persistent_context(
-            BROWSER_DATA_DIR,
-            headless=config.headless,
-            viewport={"width": 1280, "height": 900},
-            user_agent=(
+        launch_kwargs = {
+            "viewport": {"width": 1280, "height": 900},
+            "user_agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/131.0.0.0 Safari/537.36"
             ),
+        }
+        if config.headless:
+            # Use system Chrome in new headless mode — same fingerprint as headed
+            launch_kwargs["headless"] = True
+            launch_kwargs["channel"] = "chrome"
+        else:
+            launch_kwargs["headless"] = False
+
+        context = await p.chromium.launch_persistent_context(
+            BROWSER_DATA_DIR,
+            **launch_kwargs,
         )
 
         page = context.pages[0] if context.pages else await context.new_page()
