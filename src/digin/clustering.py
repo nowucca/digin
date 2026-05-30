@@ -1,5 +1,12 @@
 import math
+import os
+
 import numpy as np
+
+# Use cached model offline — don't phone home to HuggingFace on every run
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer

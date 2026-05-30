@@ -13,7 +13,11 @@ from digin.models import Post
 BROWSER_DATA_DIR = str(Path("~/.digin/browser-data").expanduser())
 
 
-async def scrape_saved_posts(config: Config, max_posts: int | None = None) -> list[Post]:
+async def scrape_saved_posts(
+    config: Config,
+    max_posts: int | None = None,
+    known_ids: set[str] | None = None,
+) -> list[Post]:
     async with async_playwright() as p:
         Path(BROWSER_DATA_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -60,7 +64,7 @@ async def scrape_saved_posts(config: Config, max_posts: int | None = None) -> li
         print("Loading saved posts...")
         await _wait_for_content(page)
 
-        posts = await _scroll_and_extract(page, config, max_posts)
+        posts = await _scroll_and_extract(page, config, max_posts, known_ids or set())
         await context.close()
         return posts
 
@@ -90,10 +94,11 @@ async def _wait_for_content(page: Page, timeout_seconds: int = 30) -> bool:
 
 
 async def _scroll_and_extract(
-    page: Page, config: Config, max_posts: int | None
+    page: Page, config: Config, max_posts: int | None, known_ids: set[str]
 ) -> list[Post]:
     posts: list[Post] = []
-    seen_ids: set[str] = set()
+    seen_ids: set[str] = set(known_ids)
+    skipped = 0
     no_new_count = 0
 
     while True:
@@ -108,9 +113,12 @@ async def _scroll_and_extract(
 
             post = await _extract_post(elem)
             if post and post.id not in seen_ids:
-                seen_ids.add(post.id)
-                posts.append(post)
-                found_new = True
+                if post.id in known_ids:
+                    skipped += 1
+                else:
+                    seen_ids.add(post.id)
+                    posts.append(post)
+                    found_new = True
 
         if max_posts and len(posts) >= max_posts:
             break
@@ -125,7 +133,8 @@ async def _scroll_and_extract(
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         delay = config.scroll_delay + random.uniform(0, 1)
         await asyncio.sleep(delay)
-        print(f"  {len(posts)} posts scraped...")
+        skip_msg = f" ({skipped} already in DB)" if skipped else ""
+        print(f"  {len(posts)} new posts scraped{skip_msg}...")
 
     # Enrich all posts by visiting their detail page for full content + links
     posts_to_enrich = [p for p in posts if p.url]

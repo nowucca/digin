@@ -42,20 +42,29 @@ def sync(ctx, num, headless):
     if headless is not None:
         config.headless = headless
 
+    # Load existing post IDs so we can skip them during scraping
+    storage = PostStorage(config.db_path)
+    existing_posts = storage.load_posts()
+    known_ids = {p.id for p in existing_posts}
+    existing_count = len(known_ids)
+    if existing_count:
+        click.echo(f"Found {existing_count} existing posts in DB, will skip duplicates.")
+
     from digin.scraper import scrape_saved_posts
 
     try:
-        posts = asyncio.run(scrape_saved_posts(config, max_posts=num))
+        posts = asyncio.run(scrape_saved_posts(config, max_posts=num, known_ids=known_ids))
     except Exception as e:
         click.echo(f"Error during scraping: {e}", err=True)
         click.echo("Make sure Playwright is installed: uv run playwright install chromium", err=True)
+        storage.close()
         sys.exit(1)
 
     if not posts:
-        click.echo("No posts found.")
+        click.echo("No new posts found.")
+        storage.close()
         return
 
-    storage = PostStorage(config.db_path)
     new_count, updated_count = storage.save_posts(posts)
     storage.close()
 
