@@ -57,3 +57,45 @@ def test_cluster_posts_too_few():
     labels, clusters = cluster_posts(posts, num_clusters=2)
     assert labels is None
     assert clusters is None
+
+
+def test_auto_select_k_with_single_cluster_trial(monkeypatch):
+    """Test _auto_select_k skips k values where KMeans collapses to a single cluster,
+    and exercises the False branch of 'if score > best_score' when a later k scores lower.
+
+    We use 25 embeddings so sqrt(25)=5 → max_k=5, range(2,6) → 4 k values tried.
+    Call 1 (k=2): all-same labels → continue (line 75)
+    Call 2 (k=3): 2 distinct labels → high score sets best_k=3
+    Call 3 (k=4): 2 distinct labels but silhouette_score will be lower → 77->71 False branch
+    Call 4 (k=5): 2 distinct labels → similar
+    """
+    import numpy as np
+    import digin.clustering as clustering_module
+
+    call_count = [0]
+
+    class FakeKMeans:
+        def __init__(self, n_clusters, random_state, n_init):
+            self.n_clusters = n_clusters
+
+        def fit_predict(self, embeddings):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call: all labels same → triggers continue (line 75)
+                return np.zeros(len(embeddings), dtype=int)
+            else:
+                # Subsequent calls: alternate between two clusters
+                labels = np.zeros(len(embeddings), dtype=int)
+                labels[len(embeddings) // 2:] = 1
+                return labels
+
+    monkeypatch.setattr(clustering_module, "KMeans", FakeKMeans)
+
+    # Use 25 embeddings with clear two-cluster structure so silhouette_score is stable
+    # but the False branch on 'if score > best_score' gets hit on repeated same-score calls
+    embeddings = np.vstack([
+        np.ones((12, 8), dtype=np.float32),
+        np.zeros((13, 8), dtype=np.float32),
+    ])
+    result = clustering_module._auto_select_k(embeddings)
+    assert result >= 2

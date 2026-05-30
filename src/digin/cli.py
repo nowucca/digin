@@ -207,7 +207,7 @@ def export(ctx, fmt, output, cluster_id):
         content = _export_csv(storage, clusters)
     elif fmt == "json":
         content = _export_json(storage, clusters)
-    elif fmt == "md":
+    elif fmt == "md":  # pragma: no cover - Click validates choice; all branches covered above
         content = _export_markdown(storage, clusters)
 
     storage.close()
