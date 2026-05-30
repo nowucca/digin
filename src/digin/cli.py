@@ -3,6 +3,7 @@ import csv
 import io
 import json as json_module
 import sys
+from pathlib import Path
 
 import click
 
@@ -246,6 +247,51 @@ def status(ctx):
         _print_cluster_table(clusters, quiet=False)
 
     storage.close()
+
+
+@cli.group()
+def skill():
+    """Manage digin skills for AI coding agents.
+
+    \b
+    Examples:
+      digin skill install     Install digin skill to Claude Code
+      digin skill list        Show skill install status
+    """
+    pass
+
+
+@skill.command("install")
+def skill_install():
+    """Install the digin skill to ~/.claude/skills/.
+
+    Copies the bundled SKILL.md to ~/.claude/skills/digin/ so Claude Code
+    can discover and use digin commands automatically.
+    """
+    import shutil
+
+    # Find bundled skill
+    skill_src = Path(__file__).parent / "skills" / "digin" / "SKILL.md"
+    if not skill_src.exists():
+        click.echo("Error: bundled SKILL.md not found.", err=True)
+        sys.exit(1)
+
+    # Install to Claude Code skills directory
+    skill_dest = Path.home() / ".claude" / "skills" / "digin"
+    skill_dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(skill_src, skill_dest / "SKILL.md")
+
+    click.echo(f"Installed digin skill to {skill_dest / 'SKILL.md'}")
+
+
+@skill.command("list")
+def skill_list():
+    """Show digin skill install status."""
+    skill_path = Path.home() / ".claude" / "skills" / "digin" / "SKILL.md"
+    if skill_path.exists():
+        click.echo(f"digin skill: installed ({skill_path})")
+    else:
+        click.echo("digin skill: not installed (run 'digin skill install')")
 
 
 # --- Output helpers ---

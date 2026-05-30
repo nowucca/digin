@@ -28,4 +28,15 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
 ]
+
+[tool.coverage.run]
+source = ["digin"]
+branch = true
+omit = ["src/digin/scraper.py"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = ["if __name__", "pragma: no cover"]

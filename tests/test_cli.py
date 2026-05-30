@@ -1,5 +1,6 @@
 from click.testing import CliRunner
 from datetime import datetime, timezone
+from pathlib import Path
 
 from digin.cli import cli
 from digin.config import Config
@@ -163,3 +164,38 @@ def test_full_pipeline_cluster_show_export(tmp_path):
     })
     assert result.exit_code == 0
     assert "# DigIn Export" in result.output
+
+
+def test_skill_help():
+    runner = CliRunner()
+    result = runner.invoke(cli, ["skill", "--help"])
+    assert result.exit_code == 0
+    assert "install" in result.output
+    assert "list" in result.output
+
+
+def test_skill_list_not_installed(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["skill", "list"])
+    assert result.exit_code == 0
+    assert "not installed" in result.output
+
+
+def test_skill_install_and_list(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    runner = CliRunner()
+
+    result = runner.invoke(cli, ["skill", "install"])
+    assert result.exit_code == 0
+    assert "Installed" in result.output
+
+    # Verify file exists
+    skill_file = tmp_path / ".claude" / "skills" / "digin" / "SKILL.md"
+    assert skill_file.exists()
+    content = skill_file.read_text()
+    assert "name: digin" in content
+
+    # List should show installed
+    result = runner.invoke(cli, ["skill", "list"])
+    assert "installed" in result.output
