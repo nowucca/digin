@@ -8,6 +8,7 @@ import click
 
 from digin import __version__
 from digin.config import Config, load_config
+from digin.paths import config_path as default_config_path, browser_data_dir
 from digin.storage import PostStorage
 
 
@@ -234,7 +235,9 @@ def status(ctx):
     clusters = storage.load_clusters()
     db_path = config.db_path
 
+    click.echo(f"Config:    {default_config_path()}")
     click.echo(f"Database:  {db_path}")
+    click.echo(f"Browser:   {browser_data_dir()}")
     click.echo(f"Posts:     {post_count}")
     click.echo(f"Clusters:  {len(clusters)}")
 

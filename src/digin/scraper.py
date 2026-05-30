@@ -9,8 +9,7 @@ from playwright.async_api import Page, async_playwright
 
 from digin.config import Config
 from digin.models import Post
-
-BROWSER_DATA_DIR = str(Path("~/.digin/browser-data").expanduser())
+from digin.paths import browser_data_dir
 
 
 async def scrape_saved_posts(
@@ -19,7 +18,8 @@ async def scrape_saved_posts(
     known_ids: set[str] | None = None,
 ) -> list[Post]:
     async with async_playwright() as p:
-        Path(BROWSER_DATA_DIR).mkdir(parents=True, exist_ok=True)
+        _browser_data_dir = str(browser_data_dir())
+        Path(_browser_data_dir).mkdir(parents=True, exist_ok=True)
 
         launch_kwargs = {
             "viewport": {"width": 1280, "height": 900},
@@ -37,7 +37,7 @@ async def scrape_saved_posts(
             launch_kwargs["headless"] = False
 
         context = await p.chromium.launch_persistent_context(
-            BROWSER_DATA_DIR,
+            _browser_data_dir,
             **launch_kwargs,
         )
 

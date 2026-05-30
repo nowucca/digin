@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import yaml
 
+from digin.paths import db_path as default_db_path, config_path as default_config_path
+
 
 @dataclass
 class Config:
@@ -13,12 +15,17 @@ class Config:
     embedding_model: str = "all-MiniLM-L6-v2"
     default_format: str = "table"
     colors: bool = True
-    db_path: str = "~/.digin/digin.db"
+    db_path: str = ""
+
+    def __post_init__(self):
+        if not self.db_path:
+            self.db_path = str(default_db_path())
 
 
-def load_config(config_path: str | None = None) -> Config:
-    if config_path is None:
-        config_path = str(Path("~/.digin/config.yaml").expanduser())
+def load_config(config_path_arg: str | None = None) -> Config:
+    if config_path_arg is None:
+        config_path_arg = str(default_config_path())
+    config_path = config_path_arg
     path = Path(config_path).expanduser()
     if not path.exists():
         return Config()
