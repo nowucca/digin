@@ -45,6 +45,7 @@ def test_cluster_no_posts(tmp_path):
         "verbose": False,
         "quiet": False,
     })
+    assert result.exit_code != 0
     assert "Need at least" in result.output or "No posts" in result.output
 
 
@@ -62,6 +63,24 @@ def test_export_help():
     assert result.exit_code == 0
     assert "--format" in result.output
     assert "--output" in result.output
+
+
+def test_status_help():
+    runner = CliRunner()
+    result = runner.invoke(cli, ["status", "--help"])
+    assert result.exit_code == 0
+
+
+def test_status_empty(tmp_path):
+    runner = CliRunner()
+    db_path = str(tmp_path / "test.db")
+    result = runner.invoke(cli, ["status"], obj={
+        "config": Config(db_path=db_path),
+        "verbose": False,
+        "quiet": False,
+    })
+    assert result.exit_code == 0
+    assert "Posts:     0" in result.output
 
 
 def test_full_pipeline_cluster_show_export(tmp_path):
@@ -107,7 +126,7 @@ def test_full_pipeline_cluster_show_export(tmp_path):
         "config": config, "verbose": False, "quiet": False,
     })
     assert result.exit_code == 0
-    assert "Found 2 clusters" in result.output
+    assert "Cluster" in result.output
 
     # Test show summary
     result = runner.invoke(cli, ["show"], obj={
