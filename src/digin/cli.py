@@ -249,6 +249,44 @@ def status(ctx):
     storage.close()
 
 
+@cli.command()
+@click.option("--output", "-o", type=click.Path(), default=None, help="Output HTML file path.")
+@click.option("--no-open", is_flag=True, help="Don't open browser automatically.")
+@click.pass_context
+def viz(ctx, output, no_open):
+    """Visualize clusters as an interactive HTML page.
+
+    Generates a page with three views: treemap, scatter plot (UMAP),
+    and network/card layout. Opens in your default browser.
+
+    \b
+    Examples:
+      digin viz                     Open interactive visualization
+      digin viz -o clusters.html    Save to file
+      digin viz --no-open           Generate without opening browser
+    """
+    config: Config = ctx.obj["config"]
+    storage = PostStorage(config.db_path)
+    clusters = storage.load_clusters()
+
+    if not clusters:
+        click.echo("No clusters found. Run 'digin cluster' first.", err=True)
+        storage.close()
+        sys.exit(1)
+
+    posts_by_cluster = {}
+    for cluster in clusters:
+        posts_by_cluster[cluster.id] = storage.load_posts(cluster_id=cluster.id)
+
+    storage.close()
+
+    from digin.viz import generate_viz
+
+    click.echo("Generating visualization...")
+    path = generate_viz(clusters, posts_by_cluster, output_path=output, open_browser=not no_open)
+    click.echo(f"Saved to {path}")
+
+
 @cli.group()
 def skill():
     """Manage digin skills for AI coding agents.
