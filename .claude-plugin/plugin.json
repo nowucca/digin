@@ -1,0 +1,19 @@
+{
+  "name": "digin",
+  "description": "LinkedIn saved posts tool — sync, cluster, visualize, and export your professional knowledge",
+  "version": "0.1.0",
+  "author": {
+    "name": "Steven Atkinson",
+    "email": "steven.atkinson@gmail.com"
+  },
+  "homepage": "https://github.com/nowucca/digin",
+  "repository": "https://github.com/nowucca/digin",
+  "license": "MIT",
+  "keywords": [
+    "linkedin",
+    "clustering",
+    "knowledge-management",
+    "saved-posts",
+    "visualization"
+  ]
+}
