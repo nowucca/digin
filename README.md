@@ -4,6 +4,12 @@ Scrape, cluster, and visualize your LinkedIn saved posts.
 
 DigIn transforms your LinkedIn saved posts from a disorganized pile into clustered, searchable, exportable knowledge. It uses ML-powered topic detection to automatically group related posts together.
 
+![Treemap visualization](docs/images/treemap.png)
+
+![Scatter plot — UMAP 2D projection](docs/images/scatter.png)
+
+![Network card layout](docs/images/network.png)
+
 ## Features
 
 - **Sync** saved posts from LinkedIn via browser automation
