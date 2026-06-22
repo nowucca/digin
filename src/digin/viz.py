@@ -231,7 +231,7 @@ Plotly.newPlot('treemap', [{{
   textinfo: 'label',
   marker: {{ colorscale: 'Viridis', colors: treemapData.cluster_ids }},
   pathbar: {{ visible: true }},
-  branchvalues: 'total',
+  branchvalues: 'remainder',
 }}], {{
   margin: {{ t: 10, l: 10, r: 10, b: 10 }},
   paper_bgcolor: '#0f0f0f',
