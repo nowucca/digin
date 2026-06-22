@@ -7,5 +7,5 @@ build/
 *.db
 *.sqlite
 .DS_Store
-posts_html/
-*.html
+.idea/
+.clinerules/
