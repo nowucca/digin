@@ -10,14 +10,15 @@ DigIn transforms your LinkedIn saved posts from a disorganized pile into cluster
 - **Cluster** posts by topic using sentence embeddings + K-means
 - **Visualize** clusters with interactive treemap, scatter, and network views
 - **Export** to CSV, JSON, or Markdown
+- **Agent-friendly** — `--json` flag on every command, `schema` for tool discovery
 - **Resumable** — only fetches new posts on re-sync
 - **Headless** — runs without a visible browser after first login
 - **Offline clustering** — no network needed after initial model download
+- **Claude Code plugin** — clone the repo and get a workflow skill automatically
 
 ## Install
 
 ```bash
-# Clone and install
 git clone https://github.com/nowucca/digin.git
 cd digin
 uv sync
@@ -56,15 +57,45 @@ digin export -f md -o research.md
 | `digin viz` | Interactive HTML visualization |
 | `digin export` | Export to CSV, JSON, or Markdown |
 | `digin status` | Show database and cluster status |
+| `digin schema` | Output full command schema as JSON |
 | `digin skill install` | Install Claude Code skill |
+
+## Agent Integration
+
+DigIn is designed to be used by AI agents. Every command supports a `--json` flag for structured output:
+
+```bash
+digin --json status          # JSON status with paths, counts, clusters
+digin --json show            # JSON cluster summary
+digin --json show -c 1       # JSON posts in cluster 1
+digin --json cluster         # JSON cluster results
+```
+
+Agents can discover all commands programmatically:
+
+```bash
+digin schema                 # Full JSON: commands, options, types, workflow
+digin schema | jq '.commands[].name'
+```
+
+### Claude Code Plugin
+
+This repo is a Claude Code plugin. After cloning, the `digin-workflow` skill is automatically available and guides you through the full workflow. You can also install the skill globally:
+
+```bash
+digin skill install          # Install to ~/.claude/skills/digin/
+```
 
 ## How It Works
 
-1. **Sync**: Playwright launches Chrome, you log in to LinkedIn (first time only), and DigIn scrolls through your saved posts extracting content, authors, and links. Sessions persist — subsequent syncs can run headless.
+1. **Sync**: Playwright launches Chrome, you log in to LinkedIn (first time only), and DigIn scrolls through your saved posts extracting content, authors, and links. Each post is enriched by visiting its detail page for full text and external URLs. Sessions persist — subsequent syncs can run headless.
 
 2. **Cluster**: Posts are converted to 384-dimensional vectors using [sentence-transformers](https://www.sbert.net/) (`all-MiniLM-L6-v2`), then grouped via K-means. The optimal number of clusters is auto-detected using silhouette scoring. Each cluster gets TF-IDF keywords.
 
-3. **Visualize**: Three interactive views in a single HTML page — treemap (proportional blocks), scatter (UMAP 2D projection), and network (card layout grouped by topic).
+3. **Visualize**: Three interactive views in a single HTML page:
+   - **Treemap** — proportional blocks sized by cluster, click to drill down
+   - **Scatter** — UMAP 2D projection showing topic proximity
+   - **Network** — card layout grouped by cluster, click to open posts
 
 ## Configuration
 
@@ -93,23 +124,13 @@ Uses XDG-compliant directories:
 | Database | `~/.local/share/digin/digin.db` |
 | Browser cache | `~/.cache/digin/browser-data/` |
 
-## Claude Code Integration
-
-DigIn ships with a skill for Claude Code:
-
-```bash
-digin skill install    # Install to ~/.claude/skills/digin/
-```
-
-Once installed, Claude Code can use `digin` commands to help you analyze your saved posts.
-
 ## Development
 
 ```bash
-# Run tests
+# Run tests (74 tests, 100% coverage excluding scraper)
 uv run pytest
 
-# Run tests with coverage
+# Run with coverage
 uv run pytest --cov=digin --cov-branch
 
 # Run a specific test
