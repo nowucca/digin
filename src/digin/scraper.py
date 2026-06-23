@@ -21,6 +21,12 @@ async def scrape_saved_posts(
         _browser_data_dir = str(browser_data_dir())
         Path(_browser_data_dir).mkdir(parents=True, exist_ok=True)
 
+        # Clean stale Chromium lock files from previous crashes
+        for lock_file in ["SingletonLock", "SingletonCookie", "SingletonSocket"]:
+            lock_path = Path(_browser_data_dir) / lock_file
+            if lock_path.exists():
+                lock_path.unlink(missing_ok=True)
+
         launch_kwargs = {
             "viewport": {"width": 1280, "height": 900},
             "user_agent": (
@@ -51,9 +57,9 @@ async def scrape_saved_posts(
             print(
                 "Please log in to LinkedIn in the browser window.\n"
                 "The tool will continue automatically once you're logged in."
-            )
+            , flush=True)
             if not await _wait_for_login(page):
-                print("Timed out waiting for login. Exiting.")
+                print("Timed out waiting for login. Exiting.", flush=True)
                 await context.close()
                 return []
 
@@ -61,7 +67,7 @@ async def scrape_saved_posts(
                 await page.goto("https://www.linkedin.com/my-items/saved-posts/")
                 await page.wait_for_load_state("domcontentloaded")
 
-        print("Loading saved posts...")
+        print("Loading saved posts...", flush=True)
         await _wait_for_content(page)
 
         posts = await _scroll_and_extract(page, config, max_posts, known_ids or set())
@@ -97,49 +103,50 @@ async def _scroll_and_extract(
     page: Page, config: Config, max_posts: int | None, known_ids: set[str]
 ) -> list[Post]:
     posts: list[Post] = []
-    seen_ids: set[str] = set(known_ids)
+    seen_ids: set[str] = set()
     skipped = 0
-    no_new_count = 0
+    no_new_elements_count = 0
+    prev_element_count = 0
 
     while True:
         elements = await page.query_selector_all(
             "[data-chameleon-result-urn*='urn:li:activity']"
         )
 
-        found_new = False
         for elem in elements:
             if max_posts and len(posts) >= max_posts:
                 break
 
             post = await _extract_post(elem)
             if post and post.id not in seen_ids:
+                seen_ids.add(post.id)
                 if post.id in known_ids:
                     skipped += 1
                 else:
-                    seen_ids.add(post.id)
                     posts.append(post)
-                    found_new = True
 
         if max_posts and len(posts) >= max_posts:
             break
 
-        if not found_new:
-            no_new_count += 1
-            if no_new_count >= config.max_scroll_attempts:
+        # Stop when scrolling produces no new DOM elements
+        if len(elements) == prev_element_count:
+            no_new_elements_count += 1
+            if no_new_elements_count >= config.max_scroll_attempts:
                 break
         else:
-            no_new_count = 0
+            no_new_elements_count = 0
+            prev_element_count = len(elements)
 
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         delay = config.scroll_delay + random.uniform(0, 1)
         await asyncio.sleep(delay)
-        skip_msg = f" ({skipped} already in DB)" if skipped else ""
-        print(f"  {len(posts)} new posts scraped{skip_msg}...")
+        total_seen = len(seen_ids)
+        print(f"  {len(posts)} new | {skipped} skipped | {len(elements)} on page | {total_seen} total seen", flush=True)
 
     # Enrich all posts by visiting their detail page for full content + links
     posts_to_enrich = [p for p in posts if p.url]
     if posts_to_enrich:
-        print(f"  Enriching {len(posts_to_enrich)} posts (fetching full content + links)...")
+        print(f"  Enriching {len(posts_to_enrich)} posts (fetching full content + links)...", flush=True)
         context = page.context
         for i, post in enumerate(posts_to_enrich):
             enriched = await _enrich_post(context, post, config)
@@ -147,7 +154,7 @@ async def _scroll_and_extract(
                 idx = posts.index(post)
                 posts[idx] = enriched
             if (i + 1) % 5 == 0:
-                print(f"    {i + 1}/{len(posts_to_enrich)} enriched...")
+                print(f"    {i + 1}/{len(posts_to_enrich)} enriched...", flush=True)
 
     return posts
 
@@ -191,7 +198,7 @@ async def _extract_post(elem) -> Post | None:
             cluster_id=None,
         )
     except Exception as e:
-        print(f"  Warning: failed to extract post: {e}")
+        print(f"  Warning: failed to extract post: {e}", flush=True)
         return None
 
 
@@ -378,7 +385,7 @@ async def _enrich_post(context, post: Post, config: Config) -> Post | None:
         await asyncio.sleep(delay)
         return post
     except Exception as e:
-        print(f"    Warning: failed to enrich post {post.id}: {e}")
+        print(f"    Warning: failed to enrich post {post.id}: {e}", flush=True)
         return None
 
 
