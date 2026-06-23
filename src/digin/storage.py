@@ -3,10 +3,13 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from digin.models import Cluster, Post
+from digin.paths import db_path as default_db_path
 
 
 class PostStorage:
-    def __init__(self, db_path: str = "~/.digin/digin.db"):
+    def __init__(self, db_path: str | None = None):
+        if db_path is None:
+            db_path = str(default_db_path())
         if db_path == ":memory:":
             self.db_path = db_path
         else:
