@@ -35,7 +35,7 @@ def test_cluster_help():
     result = runner.invoke(cli, ["cluster", "--help"])
     assert result.exit_code == 0
     assert "--num-clusters" in result.output
-    assert "--method" in result.output
+    assert "--local" in result.output
 
 
 def test_cluster_no_posts(tmp_path):

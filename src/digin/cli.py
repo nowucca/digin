@@ -123,22 +123,21 @@ def sync(ctx, num, headless):
 
 
 @cli.command()
-@click.option("--method", "-m", type=click.Choice(["kmeans"]), default=None, help="Clustering algorithm.")
-@click.option("--num-clusters", "-k", type=int, default=None, help="Number of clusters (auto if omitted).")
+@click.option("--local", is_flag=True, help="Use local ML clustering (K-means) instead of Claude.")
+@click.option("--num-clusters", "-k", type=int, default=None, help="Number of clusters (auto if omitted, local mode only).")
 @click.option("--min-size", type=int, default=None, help="Minimum cluster size.")
 @click.pass_context
-def cluster(ctx, method, num_clusters, min_size):
+def cluster(ctx, local, num_clusters, min_size):
     """Group saved posts into topic clusters.
 
-    Uses sentence embeddings and K-means to find natural topic groups
-    in your saved posts. Auto-detects the best number of clusters
-    unless you specify -k.
+    By default, uses Claude API for intelligent clustering with
+    meaningful topic names. Falls back to local ML if no API key.
 
     \b
     Examples:
-      digin cluster             Auto-detect cluster count
-      digin cluster -k 5        Force 5 clusters
-      digin cluster --min-size 5
+      digin cluster             Claude-powered clustering (default)
+      digin cluster --local     Local K-means clustering (offline)
+      digin cluster -k 5        Local with 5 clusters
     """
     config: Config = ctx.obj["config"]
     quiet = ctx.obj["quiet"]
@@ -154,11 +153,44 @@ def cluster(ctx, method, num_clusters, min_size):
         storage.close()
         sys.exit(1)
 
-    from digin.clustering import cluster_posts
+    # If -k is specified, force local mode
+    if num_clusters is not None:
+        local = True
 
-    if not use_json:
-        _echo(quiet, f"Clustering {len(posts)} posts...")
-    labels, clusters = cluster_posts(posts, num_clusters=num_clusters, model_name=config.embedding_model)
+    # Determine clustering mode
+    use_llm = not local
+    if use_llm:
+        from digin.llm_clustering import has_api_key
+        if not has_api_key():
+            if not use_json:
+                click.echo(
+                    "No ANTHROPIC_API_KEY set. Falling back to local clustering.\n"
+                    "Set it with: export ANTHROPIC_API_KEY=sk-ant-...",
+                    err=True,
+                )
+            use_llm = False
+
+    if use_llm:
+        from digin.llm_clustering import cluster_posts_with_llm
+
+        if not use_json:
+            _echo(quiet, f"Clustering {len(posts)} posts with Claude...")
+        try:
+            labels, clusters = cluster_posts_with_llm(posts)
+        except Exception as e:
+            if use_json:
+                _json_out({"error": "llm_clustering_failed", "detail": str(e)})
+            else:
+                click.echo(f"Claude clustering failed: {e}", err=True)
+                click.echo("Try: digin cluster --local", err=True)
+            storage.close()
+            sys.exit(1)
+    else:
+        from digin.clustering import cluster_posts
+
+        if not use_json:
+            _echo(quiet, f"Clustering {len(posts)} posts locally...")
+        labels, clusters = cluster_posts(posts, num_clusters=num_clusters, model_name=config.embedding_model)
 
     if labels is None or clusters is None:
         if use_json:
