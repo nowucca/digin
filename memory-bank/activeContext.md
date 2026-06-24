@@ -2,9 +2,11 @@
 
 ## Current State (June 2026)
 - 697 posts synced from LinkedIn
-- 10 K-means clusters with TF-IDF naming (noisy — "Https & Lnkd" in most names)
-- Claude-powered clustering done manually, dramatically better names (e.g., "Claude Code & Agent Harnesses", "Ethan Mollick's AI Research")
-- Roadmap: LLM-powered cluster naming via Anthropic API, research pipeline, HDBSCAN
+- Claude-powered clustering implemented as default (`digin cluster`)
+- Local K-means available as fallback (`digin cluster --local`)
+- Uses Claude Sonnet via Anthropic SDK, requires ANTHROPIC_API_KEY env var
+- Falls back to local with clear warning if no API key
+- Constellize plugins now loading (skills + agents)
 
 ## Recent Discoveries
 - TF-IDF keyword extraction picks up URL fragments (https, lnkd.in) as top terms — needs URL stripping before TF-IDF

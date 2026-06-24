@@ -2,24 +2,24 @@
 
 Scrape, cluster, and visualize your LinkedIn saved posts.
 
-DigIn transforms your LinkedIn saved posts from a disorganized pile into clustered, searchable, exportable knowledge. It uses ML-powered topic detection to automatically group related posts together.
+DigIn transforms your LinkedIn saved posts from a disorganized pile into clustered, searchable, exportable knowledge. It uses Claude to intelligently group related posts by topic.
 
-![Treemap visualization](docs/images/treemap.png)
+![Treemap visualization](docs/images/treemap-claude.png)
 
-![Scatter plot — UMAP 2D projection](docs/images/scatter.png)
+![Scatter plot — UMAP 2D projection](docs/images/scatter-claude.png)
 
-![Network card layout](docs/images/network.png)
+![Network card layout](docs/images/network-claude.png)
 
 ## Features
 
+- **Cluster with Claude** — intelligent topic detection with meaningful names (default)
 - **Sync** saved posts from LinkedIn via browser automation
-- **Cluster** posts by topic using sentence embeddings + K-means
 - **Visualize** clusters with interactive treemap, scatter, and network views
 - **Export** to CSV, JSON, or Markdown
+- **Local fallback** — offline K-means clustering when no API key is available
 - **Agent-friendly** — `--json` flag on every command, `schema` for tool discovery
 - **Resumable** — only fetches new posts on re-sync
 - **Headless** — runs without a visible browser after first login
-- **Offline clustering** — no network needed after initial model download
 - **Claude Code plugin** — clone the repo and get a workflow skill automatically
 
 ## Install
@@ -29,6 +29,9 @@ git clone https://github.com/nowucca/digin.git
 cd digin
 uv sync
 uv run playwright install chromium
+
+# For Claude-powered clustering (recommended):
+export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ## Quick Start
@@ -37,7 +40,7 @@ uv run playwright install chromium
 # First run: opens browser for LinkedIn login
 digin sync
 
-# Cluster posts by topic
+# Cluster posts by topic (uses Claude API)
 digin cluster
 
 # View results
@@ -58,13 +61,41 @@ digin export -f md -o research.md
 | Command | Description |
 |---------|-------------|
 | `digin sync` | Fetch saved posts from LinkedIn |
-| `digin cluster` | Group posts into topic clusters |
+| `digin cluster` | Cluster posts with Claude (default) or local ML (`--local`) |
 | `digin show` | Display cluster summary or detail |
 | `digin viz` | Interactive HTML visualization |
 | `digin export` | Export to CSV, JSON, or Markdown |
 | `digin status` | Show database and cluster status |
 | `digin schema` | Output full command schema as JSON |
 | `digin skill install` | Install Claude Code skill |
+
+## Clustering
+
+### Claude-Powered (Default)
+
+```bash
+digin cluster                 # Uses Claude API
+```
+
+Sends post previews to Claude Sonnet, which identifies natural topic groups and assigns meaningful names. Requires `ANTHROPIC_API_KEY` environment variable.
+
+**Example output:**
+```
+  #  Cluster                    Posts  Keywords
+  1  Claude Code & Harnesses       55  claude-code, agents, harnesses
+  2  Cline & MCP Ecosystem         60  cline, mcp, context-management
+  3  Ethan Mollick AI Research    110  ai-research, education, adoption
+  4  System Design & Backend       55  graphql, kafka, api-design
+```
+
+### Local ML Fallback
+
+```bash
+digin cluster --local         # Offline, no API key needed
+digin cluster -k 10           # Force 10 clusters (implies --local)
+```
+
+Uses sentence-transformers embeddings + K-means. Fully offline after initial model download. Auto-falls back to this if no API key is set.
 
 ## Agent Integration
 
@@ -96,26 +127,25 @@ digin skill install          # Install to ~/.claude/skills/digin/
 
 1. **Sync**: Playwright launches Chrome, you log in to LinkedIn (first time only), and DigIn scrolls through your saved posts extracting content, authors, and links. Each post is enriched by visiting its detail page for full text and external URLs. Sessions persist — subsequent syncs can run headless.
 
-2. **Cluster**: Posts are converted to 384-dimensional vectors using [sentence-transformers](https://www.sbert.net/) (`all-MiniLM-L6-v2`), then grouped via K-means. The optimal number of clusters is auto-detected using silhouette scoring. Each cluster gets TF-IDF keywords.
+2. **Cluster**: By default, post previews are sent to Claude which identifies natural topic groups and assigns each post. With `--local`, posts are converted to 384-dimensional vectors using sentence-transformers, then grouped via K-means with auto-K selection.
 
 3. **Visualize**: Three interactive views in a single HTML page:
    - **Treemap** — proportional blocks sized by cluster, click to drill down
    - **Scatter** — UMAP 2D projection showing topic proximity
    - **Network** — card layout grouped by cluster, click to open posts
 
-### Architecture: Local ML, No LLMs
+### Architecture
 
-By design, DigIn runs entirely locally with no API calls or cloud dependencies after initial setup. The ML stack:
-
-| Component | What | Role |
+| Component | What | When |
 |-----------|------|------|
-| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | Pre-trained sentence encoder (80MB, downloaded once) | Converts post text → 384-dim vectors |
-| [K-means](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) | Classical clustering algorithm | Groups vectors by proximity |
-| [TF-IDF](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html) | Statistical keyword extraction | Finds distinctive terms per cluster |
-| [UMAP](https://umap-learn.readthedocs.io/) | Dimensionality reduction | Compresses 384-dim → 2D for scatter plot |
-| [Silhouette scoring](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.silhouette_score.html) | Cluster quality metric | Auto-detects optimal number of clusters |
+| [Claude Sonnet](https://docs.anthropic.com/) | LLM-powered clustering | Default mode (`digin cluster`) |
+| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | Sentence embeddings (80MB) | Local mode (`--local`) |
+| [K-means](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html) | Clustering algorithm | Local mode |
+| [TF-IDF](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html) | Keyword extraction | Local mode |
+| [UMAP](https://umap-learn.readthedocs.io/) | 2D projection | Visualization scatter plot |
+| [Plotly](https://plotly.com/python/) | Interactive charts | Visualization treemap/scatter |
 
-No generative AI, no token costs, no network required after the first model download. Everything runs offline.
+Claude mode requires `ANTHROPIC_API_KEY`. Local mode runs fully offline after initial model download.
 
 ## Configuration
 
@@ -127,7 +157,6 @@ linkedin:
   scroll_delay: 2
 
 clustering:
-  method: kmeans
   min_cluster_size: 3
 
 output:
@@ -159,11 +188,10 @@ uv run pytest tests/test_cli.py::test_full_pipeline -v
 
 ## Roadmap
 
-- **LLM-powered cluster naming** — Use Claude API to generate meaningful cluster summaries instead of top TF-IDF keywords (e.g., "AI Agent Frameworks" instead of "Ai & Code & Agent")
 - **Research pipeline** (`digin explore`) — Follow links in posts, summarize referenced content, surface deeper insights using Claude
-- **HDBSCAN clustering** — Density-based clustering that handles noise and finds natural cluster shapes without specifying K
+- **HDBSCAN clustering** — Density-based local clustering that handles noise and finds natural cluster shapes
 - **Incremental clustering** — Add new posts to existing clusters without re-clustering everything
-- **Engagement extraction** — LinkedIn's saved posts view doesn't expose like/comment counts; scrape from detail pages
+- **Engagement extraction** — Scrape like/comment counts from detail pages
 
 ## License
 

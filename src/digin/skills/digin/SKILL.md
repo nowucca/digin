@@ -29,11 +29,12 @@ First run opens a browser for manual LinkedIn login. Sessions persist — subseq
 ### Cluster posts by topic
 
 ```bash
-digin cluster             # Auto-detect number of clusters
-digin cluster -k 5        # Force 5 clusters
+digin cluster             # Claude-powered clustering (default)
+digin cluster --local     # Local K-means clustering (offline)
+digin cluster -k 5        # Force 5 clusters (local mode)
 ```
 
-Uses sentence-transformers embeddings and K-means. Auto-selects K via silhouette score if not specified. Requires at least 6 posts.
+Default uses Claude API for intelligent topic names. Requires `ANTHROPIC_API_KEY`. Falls back to local K-means if no key is set. Requires at least 6 posts.
 
 ### View results
 

@@ -58,14 +58,19 @@ digin sync --headless -n 100    # limit to 100 posts
 ### Step 2: Cluster
 
 ```bash
-# Auto-detect number of clusters
+# Claude-powered clustering (default, needs ANTHROPIC_API_KEY)
 digin cluster
 
-# Or specify manually
+# Local ML fallback (offline, no API key needed)
+digin cluster --local
+
+# Local with specific cluster count
 digin cluster -k 5
 ```
 
-Needs at least 6 posts. More posts = better clusters. Auto-K uses silhouette scoring to find the natural grouping.
+Default uses Claude API for intelligent topic detection with meaningful names.
+Requires `ANTHROPIC_API_KEY` env var — falls back to local K-means if not set.
+Needs at least 6 posts. More posts = better clusters.
 
 ### Step 3: Explore Results
 
